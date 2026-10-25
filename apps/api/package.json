@@ -1,1 +1,5 @@
-{"name":"@snack/api","private":true,"type":"module"}
+{
+  "name": "@snack/api",
+  "private": true,
+  "type": "module"
+}

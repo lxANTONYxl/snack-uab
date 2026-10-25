@@ -1,32 +1,332 @@
 import { useRef, useState } from 'react';
-import { Banknote, Check, Minus, Plus, QrCode, RefreshCw, Search, ShoppingBag, ShoppingCart, Trash2 } from 'lucide-react';
+import {
+  Banknote,
+  Check,
+  Minus,
+  Plus,
+  QrCode,
+  RefreshCw,
+  Search,
+  ShoppingBag,
+  ShoppingCart,
+  Trash2,
+} from 'lucide-react';
 import { api, money, toCents, useResource, type Product } from '../lib';
 import { Button, Empty, ErrorBox, Loading } from '../components/ui';
 import { ProductIcon } from './Products';
 import { Receipt } from '../components/Receipt';
 type Line = { product: Product; quantity: number };
 export function SalesPage({ version, onChange }: { version: number; onChange: () => void }) {
-  const products = useResource<Product[]>('/products', version); const [search, setSearch] = useState(''); const [category, setCategory] = useState('Todas'); const [cart, setCart] = useState<Line[]>([]);
-  const [method, setMethod] = useState<'cash' | 'qr'>('cash'); const [received, setReceived] = useState(''); const [reference, setReference] = useState(''); const [qrConfirmed, setQrConfirmed] = useState(false); const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const [receipt, setReceipt] = useState('');
-  const request = useRef({ body: '', id: '' }); const inFlight = useRef(false);
-  const list = (products.data || []).filter(p => p.active); const groups = ['Todas', ...new Set(list.map(p => p.category))]; const filtered = list.filter(p => (category === 'Todas' || p.category === category) && `${p.name} ${p.code}`.toLowerCase().includes(search.toLowerCase()));
-  const total = cart.reduce((sum, line) => sum + toCents(line.product.price) * line.quantity, 0); const units = cart.reduce((sum, line) => sum + line.quantity, 0); const validCash = /^\d{1,7}(\.\d{1,2})?$/.test(received) && toCents(received) >= total;
-  function add(product: Product) { if (busy) return; setCart(lines => { const existing = lines.find(l => l.product.id === product.id); return existing ? lines.map(l => l.product.id === product.id ? { ...l, quantity: Math.min(l.quantity + 1, 1000) } : l) : [...lines, { product, quantity: 1 }]; }); setQrConfirmed(false); setError(''); }
-  function quantity(id: string, diff: number) { setCart(lines => lines.map(l => l.product.id === id ? { ...l, quantity: Math.min(l.quantity + diff, 1000) } : l).filter(l => l.quantity > 0)); setQrConfirmed(false); }
-  async function checkout() {
-    if (inFlight.current) return; inFlight.current = true; setBusy(true); setError('');
-    const payload = { items: cart.map(l => ({ productId: l.product.id, quantity: l.quantity, expectedPrice: l.product.price })), method, ...(method === 'cash' ? { received } : { reference, qrConfirmed }) };
-    const body = JSON.stringify(payload); if (request.current.body !== body) request.current = { body, id: crypto.randomUUID() };
-    try { const sale = await api<{ id: string }>('/sales', { method: 'POST', body: JSON.stringify({ ...payload, requestId: request.current.id }) }); setReceipt(sale.id); setCart([]); setReceived(''); setReference(''); setQrConfirmed(false); request.current = { body: '', id: '' }; onChange(); } catch (err) { setError((err as Error).message); } finally { setBusy(false); inFlight.current = false; }
+  const products = useResource<Product[]>('/products', version);
+  const [search, setSearch] = useState('');
+  const [category, setCategory] = useState('Todas');
+  const [cart, setCart] = useState<Line[]>([]);
+  const [method, setMethod] = useState<'cash' | 'qr'>('cash');
+  const [received, setReceived] = useState('');
+  const [reference, setReference] = useState('');
+  const [qrConfirmed, setQrConfirmed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [receipt, setReceipt] = useState('');
+  const request = useRef({ body: '', id: '' });
+  const inFlight = useRef(false);
+  const list = (products.data || []).filter((p) => p.active);
+  const groups = ['Todas', ...new Set(list.map((p) => p.category))];
+  const filtered = list.filter(
+    (p) =>
+      (category === 'Todas' || p.category === category) &&
+      `${p.name} ${p.code}`.toLowerCase().includes(search.toLowerCase()),
+  );
+  const total = cart.reduce((sum, line) => sum + toCents(line.product.price) * line.quantity, 0);
+  const units = cart.reduce((sum, line) => sum + line.quantity, 0);
+  const validCash = /^\d{1,7}(\.\d{1,2})?$/.test(received) && toCents(received) >= total;
+  function add(product: Product) {
+    if (busy) return;
+    setCart((lines) => {
+      const existing = lines.find((l) => l.product.id === product.id);
+      return existing
+        ? lines.map((l) =>
+            l.product.id === product.id ? { ...l, quantity: Math.min(l.quantity + 1, 1000) } : l,
+          )
+        : [...lines, { product, quantity: 1 }];
+    });
+    setQrConfirmed(false);
+    setError('');
   }
-  return <div className="page-enter"><div className="page-heading"><div><span className="eyebrow">PUNTO DE VENTA</span><h1>Una nueva venta</h1><p>Selecciona los productos y registra el cobro.</p></div><Button variant="outline" onClick={products.reload} disabled={busy}><RefreshCw size={16}/>Actualizar catálogo</Button></div>
-    <div className="pos-layout"><section className="pos-catalog"><div className="search-input pos-search"><Search size={19}/><input placeholder="Buscar un producto…" aria-label="Buscar producto para vender" value={search} onChange={e => setSearch(e.target.value)}/><span>{list.length} disponibles</span></div><div className="pos-tabs">{groups.map(group => <button aria-pressed={category === group} key={group} onClick={() => setCategory(group)} className={category === group ? 'selected' : ''}>{group}</button>)}</div>
-    {products.error ? <ErrorBox message={products.error} retry={products.reload}/> : products.loading ? <Loading/> : filtered.length === 0 ? <Empty icon={<ShoppingBag/>} title="No hay productos disponibles" text="Busca otro nombre o activa productos en el catálogo."/> : <div className="product-grid">{filtered.map(p => <button key={p.id} className="pos-product" disabled={busy} onClick={() => add(p)} aria-label={`Agregar ${p.name}, ${money(p.price)}`}><div className="pos-product-top"><ProductIcon category={p.category} size={29}/><span className="pos-add"><Plus size={18}/></span></div><span className="pos-category">{p.category}</span><strong>{p.name}</strong><div className="pos-product-bottom"><span>{money(p.price)}</span>{cart.some(l => l.product.id === p.id) && <small>{cart.find(l => l.product.id === p.id)!.quantity} en pedido</small>}</div></button>)}</div>}</section>
-    <aside className="panel cart"><div className="panel-heading"><h2><ShoppingCart size={19}/>Venta actual <span className="count-pill">{units}</span></h2><Button variant="ghost" size="icon" aria-label="Vaciar pedido" disabled={!cart.length || busy} onClick={() => { setCart([]); setQrConfirmed(false); setError(''); }}><Trash2 size={17}/></Button></div>
-    {cart.length === 0 ? <Empty icon={<ShoppingBag size={29}/>} title="Tu pedido está vacío" text="Agrega productos del catálogo para comenzar."/> : <div className="cart-items">{cart.map(line => <div className="cart-item" key={line.product.id}><div><strong>{line.product.name}</strong><small>{money(line.product.price)} por unidad</small><div className="quantity-control"><button aria-label={`Quitar uno de ${line.product.name}`} disabled={busy} onClick={() => quantity(line.product.id, -1)}><Minus size={12}/></button><span>{line.quantity}</span><button aria-label={`Agregar uno de ${line.product.name}`} disabled={busy || line.quantity >= 1000} onClick={() => quantity(line.product.id, 1)}><Plus size={12}/></button></div></div><strong>{money(toCents(line.product.price) * line.quantity / 100)}</strong></div>)}</div>}
-    <div className="checkout"><div className="cart-total"><span>Total a cobrar<small>{units} {units === 1 ? 'producto' : 'productos'}</small></span><strong>{money(total / 100)}</strong></div><span className="field-caption">MÉTODO DE PAGO</span><div className="payment-options"><button disabled={busy} className={method === 'cash' ? 'selected' : ''} onClick={() => { setMethod('cash'); setError(''); }}><Banknote size={20}/>Efectivo{method === 'cash' && <Check size={14}/>}</button><button disabled={busy} className={method === 'qr' ? 'selected' : ''} onClick={() => { setMethod('qr'); setError(''); }}><QrCode size={20}/>QR{method === 'qr' && <Check size={14}/>}</button></div>
-    {method === 'cash' ? <><label>Efectivo recibido (Bs)<input type="number" min="0" step="0.01" max="9999999.99" value={received} onChange={e => setReceived(e.target.value)} placeholder="0.00" disabled={busy}/></label><div className="change-line"><span>Cambio</span><strong>{validCash ? money((toCents(received) - total) / 100) : 'Bs 0,00'}</strong></div></> : <><label>Referencia de pago <span className="optional">(opcional)</span><input value={reference} maxLength={100} onChange={e => setReference(e.target.value)} placeholder="N.º de transacción" disabled={busy}/></label><label className="checkbox-row qr-check"><input type="checkbox" checked={qrConfirmed} onChange={e => setQrConfirmed(e.target.checked)} disabled={busy}/><span>Verifiqué la recepción de {money(total / 100)}<small>Confirma el abono en la cuenta de la tienda.</small></span></label></>}
-    {error && <ErrorBox message={error}/>}<Button className="checkout-button" disabled={busy || !cart.length || (method === 'cash' ? !validCash : !qrConfirmed)} onClick={checkout}><Check size={18}/>{busy ? 'Registrando…' : `Registrar cobro · ${money(total / 100)}`}</Button><p className="checkout-note">El cobro se incorporará al reporte de ventas.</p></div></aside></div>
-    {receipt && <Receipt id={receipt} onClose={() => setReceipt('')} onChange={onChange}/>}
-  </div>;
+  function quantity(id: string, diff: number) {
+    setCart((lines) =>
+      lines
+        .map((l) =>
+          l.product.id === id ? { ...l, quantity: Math.min(l.quantity + diff, 1000) } : l,
+        )
+        .filter((l) => l.quantity > 0),
+    );
+    setQrConfirmed(false);
+  }
+  async function checkout() {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setBusy(true);
+    setError('');
+    const payload = {
+      items: cart.map((l) => ({
+        productId: l.product.id,
+        quantity: l.quantity,
+        expectedPrice: l.product.price,
+      })),
+      method,
+      ...(method === 'cash' ? { received } : { reference, qrConfirmed }),
+    };
+    const body = JSON.stringify(payload);
+    if (request.current.body !== body) request.current = { body, id: crypto.randomUUID() };
+    try {
+      const sale = await api<{ id: string }>('/sales', {
+        method: 'POST',
+        body: JSON.stringify({ ...payload, requestId: request.current.id }),
+      });
+      setReceipt(sale.id);
+      setCart([]);
+      setReceived('');
+      setReference('');
+      setQrConfirmed(false);
+      request.current = { body: '', id: '' };
+      onChange();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+      inFlight.current = false;
+    }
+  }
+  return (
+    <div className="page-enter">
+      <div className="page-heading">
+        <div>
+          <span className="eyebrow">PUNTO DE VENTA</span>
+          <h1>Una nueva venta</h1>
+          <p>Selecciona los productos y registra el cobro.</p>
+        </div>
+        <Button variant="outline" onClick={products.reload} disabled={busy}>
+          <RefreshCw size={16} />
+          Actualizar catálogo
+        </Button>
+      </div>
+      <div className="pos-layout">
+        <section className="pos-catalog">
+          <div className="search-input pos-search">
+            <Search size={19} />
+            <input
+              placeholder="Buscar un producto…"
+              aria-label="Buscar producto para vender"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <span>{list.length} disponibles</span>
+          </div>
+          <div className="pos-tabs">
+            {groups.map((group) => (
+              <button
+                aria-pressed={category === group}
+                key={group}
+                onClick={() => setCategory(group)}
+                className={category === group ? 'selected' : ''}
+              >
+                {group}
+              </button>
+            ))}
+          </div>
+          {products.error ? (
+            <ErrorBox message={products.error} retry={products.reload} />
+          ) : products.loading ? (
+            <Loading />
+          ) : filtered.length === 0 ? (
+            <Empty
+              icon={<ShoppingBag />}
+              title="No hay productos disponibles"
+              text="Busca otro nombre o activa productos en el catálogo."
+            />
+          ) : (
+            <div className="product-grid">
+              {filtered.map((p) => (
+                <button
+                  key={p.id}
+                  className="pos-product"
+                  disabled={busy}
+                  onClick={() => add(p)}
+                  aria-label={`Agregar ${p.name}, ${money(p.price)}`}
+                >
+                  <div className="pos-product-top">
+                    <ProductIcon category={p.category} size={29} />
+                    <span className="pos-add">
+                      <Plus size={18} />
+                    </span>
+                  </div>
+                  <span className="pos-category">{p.category}</span>
+                  <strong>{p.name}</strong>
+                  <div className="pos-product-bottom">
+                    <span>{money(p.price)}</span>
+                    {cart.some((l) => l.product.id === p.id) && (
+                      <small>{cart.find((l) => l.product.id === p.id)!.quantity} en pedido</small>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+        <aside className="panel cart">
+          <div className="panel-heading">
+            <h2>
+              <ShoppingCart size={19} />
+              Venta actual <span className="count-pill">{units}</span>
+            </h2>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Vaciar pedido"
+              disabled={!cart.length || busy}
+              onClick={() => {
+                setCart([]);
+                setQrConfirmed(false);
+                setError('');
+              }}
+            >
+              <Trash2 size={17} />
+            </Button>
+          </div>
+          {cart.length === 0 ? (
+            <Empty
+              icon={<ShoppingBag size={29} />}
+              title="Tu pedido está vacío"
+              text="Agrega productos del catálogo para comenzar."
+            />
+          ) : (
+            <div className="cart-items">
+              {cart.map((line) => (
+                <div className="cart-item" key={line.product.id}>
+                  <div>
+                    <strong>{line.product.name}</strong>
+                    <small>{money(line.product.price)} por unidad</small>
+                    <div className="quantity-control">
+                      <button
+                        aria-label={`Quitar uno de ${line.product.name}`}
+                        disabled={busy}
+                        onClick={() => quantity(line.product.id, -1)}
+                      >
+                        <Minus size={12} />
+                      </button>
+                      <span>{line.quantity}</span>
+                      <button
+                        aria-label={`Agregar uno de ${line.product.name}`}
+                        disabled={busy || line.quantity >= 1000}
+                        onClick={() => quantity(line.product.id, 1)}
+                      >
+                        <Plus size={12} />
+                      </button>
+                    </div>
+                  </div>
+                  <strong>{money((toCents(line.product.price) * line.quantity) / 100)}</strong>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="checkout">
+            <div className="cart-total">
+              <span>
+                Total a cobrar
+                <small>
+                  {units} {units === 1 ? 'producto' : 'productos'}
+                </small>
+              </span>
+              <strong>{money(total / 100)}</strong>
+            </div>
+            <span className="field-caption">MÉTODO DE PAGO</span>
+            <div className="payment-options">
+              <button
+                disabled={busy}
+                className={method === 'cash' ? 'selected' : ''}
+                onClick={() => {
+                  setMethod('cash');
+                  setError('');
+                }}
+              >
+                <Banknote size={20} />
+                Efectivo{method === 'cash' && <Check size={14} />}
+              </button>
+              <button
+                disabled={busy}
+                className={method === 'qr' ? 'selected' : ''}
+                onClick={() => {
+                  setMethod('qr');
+                  setError('');
+                }}
+              >
+                <QrCode size={20} />
+                QR{method === 'qr' && <Check size={14} />}
+              </button>
+            </div>
+            {method === 'cash' ? (
+              <>
+                <label>
+                  Efectivo recibido (Bs)
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    max="9999999.99"
+                    value={received}
+                    onChange={(e) => setReceived(e.target.value)}
+                    placeholder="0.00"
+                    disabled={busy}
+                  />
+                </label>
+                <div className="change-line">
+                  <span>Cambio</span>
+                  <strong>
+                    {validCash ? money((toCents(received) - total) / 100) : 'Bs 0,00'}
+                  </strong>
+                </div>
+              </>
+            ) : (
+              <>
+                <label>
+                  Referencia de pago <span className="optional">(opcional)</span>
+                  <input
+                    value={reference}
+                    maxLength={100}
+                    onChange={(e) => setReference(e.target.value)}
+                    placeholder="N.º de transacción"
+                    disabled={busy}
+                  />
+                </label>
+                <label className="checkbox-row qr-check">
+                  <input
+                    type="checkbox"
+                    checked={qrConfirmed}
+                    onChange={(e) => setQrConfirmed(e.target.checked)}
+                    disabled={busy}
+                  />
+                  <span>
+                    Verifiqué la recepción de {money(total / 100)}
+                    <small>Confirma el abono en la cuenta de la tienda.</small>
+                  </span>
+                </label>
+              </>
+            )}
+            {error && <ErrorBox message={error} />}
+            <Button
+              className="checkout-button"
+              disabled={busy || !cart.length || (method === 'cash' ? !validCash : !qrConfirmed)}
+              onClick={checkout}
+            >
+              <Check size={18} />
+              {busy ? 'Registrando…' : `Registrar cobro · ${money(total / 100)}`}
+            </Button>
+            <p className="checkout-note">El cobro se incorporará al reporte de ventas.</p>
+          </div>
+        </aside>
+      </div>
+      {receipt && <Receipt id={receipt} onClose={() => setReceipt('')} onChange={onChange} />}
+    </div>
+  );
 }

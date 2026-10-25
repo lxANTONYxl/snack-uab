@@ -1,36 +1,449 @@
 import { useState } from 'react';
-import { ArrowUpRight, Boxes, CheckCircle2, CupSoda, Cookie, Croissant, Candy, Package, Plus, Search, SlidersHorizontal, Pencil, Tag } from 'lucide-react';
+import {
+  ArrowUpRight,
+  Boxes,
+  CheckCircle2,
+  CupSoda,
+  Cookie,
+  Croissant,
+  Candy,
+  Package,
+  Plus,
+  Search,
+  SlidersHorizontal,
+  Pencil,
+  Tag,
+} from 'lucide-react';
 import { api, money, useResource, type Product, type Category } from '../lib';
 import { Button, Dialog, Empty, ErrorBox, Loading } from '../components/ui';
 
 export function ProductIcon({ category, size = 21 }: { category: string; size?: number }) {
-  const Icon = category === 'Bebidas' ? CupSoda : category === 'Snacks' ? Cookie : category === 'Panadería' ? Croissant : category === 'Golosinas' ? Candy : Package;
-  return <span className={`product-icon category-${category === 'Bebidas' ? 'blue' : category === 'Snacks' ? 'orange' : category === 'Panadería' ? 'yellow' : 'pink'}`}><Icon size={size}/></span>;
+  const Icon =
+    category === 'Bebidas'
+      ? CupSoda
+      : category === 'Snacks'
+        ? Cookie
+        : category === 'Panadería'
+          ? Croissant
+          : category === 'Golosinas'
+            ? Candy
+            : Package;
+  return (
+    <span
+      className={`product-icon category-${category === 'Bebidas' ? 'blue' : category === 'Snacks' ? 'orange' : category === 'Panadería' ? 'yellow' : 'pink'}`}
+    >
+      <Icon size={size} />
+    </span>
+  );
 }
-export function ProductsPage({ version, onChange, canEdit }: { version: number; onChange: () => void; canEdit: boolean }) {
-  const products = useResource<Product[]>('/products', version); const categories = useResource<Category[]>('/categories', version);
-  const [search, setSearch] = useState(''); const [category, setCategory] = useState('all'); const [status, setStatus] = useState('all');
-  const [editing, setEditing] = useState<Product | null | undefined>(undefined); const [newCategory, setNewCategory] = useState(false); const [notice, setNotice] = useState('');
-  const data = products.data || []; const filtered = data.filter(p => `${p.name} ${p.code}`.toLowerCase().includes(search.toLowerCase()) && (category === 'all' || p.categoryId === category) && (status === 'all' || p.active === (status === 'active')));
-  return <div className="page-enter"><div className="page-heading"><div><span className="eyebrow">CATÁLOGO DE LA TIENDA</span><h1>Gestión de productos</h1><p>Un catálogo organizado para atender mejor.</p></div>{canEdit && <Button onClick={() => setEditing(null)}><Plus size={18}/>Nuevo producto</Button>}</div>
-    {notice && <div className="notice" role="status"><CheckCircle2 size={18}/>{notice}<button onClick={() => setNotice('')} aria-label="Cerrar aviso">×</button></div>}
-    <div className="catalog-stats"><div><span className="stat-icon blue"><Boxes size={22}/></span><div><span>Productos registrados</span><strong>{data.length}</strong></div></div><div><span className="stat-icon green"><CheckCircle2 size={22}/></span><div><span>Disponibles para vender</span><strong>{data.filter(p => p.active).length}</strong></div></div><div><span className="stat-icon purple"><Tag size={22}/></span><div><span>Categorías</span><strong>{categories.data?.length || 0}</strong></div></div></div>
-    <section className="panel catalog-panel"><div className="panel-heading"><div><h2>Tu catálogo <span className="count-pill">{data.length}</span></h2><p>Consulta precios y mantén tus productos al día.</p></div>{canEdit && <Button variant="outline" size="small" onClick={() => setNewCategory(true)}><Plus size={15}/>Categoría</Button>}</div>
-      <div className="catalog-toolbar"><div className="search-input"><Search size={18}/><input aria-label="Buscar producto por nombre o código" placeholder="Buscar por nombre o código…" value={search} onChange={e => setSearch(e.target.value)}/></div><div className="status-filter"><SlidersHorizontal size={16}/><select aria-label="Filtrar por estado" value={status} onChange={e => setStatus(e.target.value)}><option value="all">Todos los estados</option><option value="active">Activos</option><option value="inactive">Inactivos</option></select></div></div>
-      <div className="category-tabs" aria-label="Categorías"><button aria-pressed={category === 'all'} className={category === 'all' ? 'selected' : ''} onClick={() => setCategory('all')}>Todos los productos</button>{categories.data?.map(c => <button aria-pressed={category === c.id} className={category === c.id ? 'selected' : ''} key={c.id} onClick={() => setCategory(c.id)}>{c.name}</button>)}</div>
-      {products.error || categories.error ? <ErrorBox message={products.error || categories.error} retry={() => { products.reload(); categories.reload(); }}/> : products.loading ? <Loading/> : filtered.length === 0 ? <Empty icon={<Package/>} title="No encontramos productos" text="Prueba otra búsqueda o registra tu primer producto."/> : <div className="table-scroll"><table><thead><tr><th>PRODUCTO</th><th>CÓDIGO</th><th>CATEGORÍA</th><th>PRECIO DE VENTA</th><th>ESTADO</th>{canEdit && <th><span className="sr-only">Acciones</span></th>}</tr></thead><tbody>{filtered.map(p => <tr key={p.id}><td><div className="product-cell"><ProductIcon category={p.category}/><strong>{p.name}</strong></div></td><td><span className="code-label">{p.code}</span></td><td>{p.category}</td><td><strong className="price-label">{money(p.price)}</strong></td><td><span className={`badge ${p.active ? 'badge-green' : 'badge-gray'}`}><i/>{p.active ? 'Activo' : 'Inactivo'}</span></td>{canEdit && <td><Button variant="ghost" size="icon" aria-label={`Editar ${p.name}`} onClick={() => setEditing(p)}><Pencil size={16}/></Button></td>}</tr>)}</tbody></table></div>}
-      <div className="table-footer"><span>{filtered.length} de {data.length} productos</span><span>Los productos inactivos conservan su historial.</span></div>
-    </section><div className="context-note"><Package size={17}/><span>El precio se conserva en cada venta, incluso si después actualizas el catálogo.</span></div>
-    {editing !== undefined && <ProductForm key={editing?.id || 'new'} product={editing} categories={categories.data || []} onClose={() => setEditing(undefined)} onSaved={() => { setNotice(editing ? 'Producto actualizado correctamente.' : 'Producto registrado correctamente.'); setEditing(undefined); onChange(); }}/>}
-    <Dialog open={newCategory} onOpenChange={setNewCategory} title="Nueva categoría" description="Agrupa tus productos para encontrarlos más rápido."><CategoryForm onSaved={() => { setNewCategory(false); onChange(); setNotice('Categoría creada.'); }}/></Dialog>
-  </div>;
+export function ProductsPage({
+  version,
+  onChange,
+  canEdit,
+}: {
+  version: number;
+  onChange: () => void;
+  canEdit: boolean;
+}) {
+  const products = useResource<Product[]>('/products', version);
+  const categories = useResource<Category[]>('/categories', version);
+  const [search, setSearch] = useState('');
+  const [category, setCategory] = useState('all');
+  const [status, setStatus] = useState('all');
+  const [editing, setEditing] = useState<Product | null | undefined>(undefined);
+  const [newCategory, setNewCategory] = useState(false);
+  const [notice, setNotice] = useState('');
+  const data = products.data || [];
+  const filtered = data.filter(
+    (p) =>
+      `${p.name} ${p.code}`.toLowerCase().includes(search.toLowerCase()) &&
+      (category === 'all' || p.categoryId === category) &&
+      (status === 'all' || p.active === (status === 'active')),
+  );
+  return (
+    <div className="page-enter">
+      <div className="page-heading">
+        <div>
+          <span className="eyebrow">CATÁLOGO DE LA TIENDA</span>
+          <h1>Gestión de productos</h1>
+          <p>Un catálogo organizado para atender mejor.</p>
+        </div>
+        {canEdit && (
+          <Button onClick={() => setEditing(null)}>
+            <Plus size={18} />
+            Nuevo producto
+          </Button>
+        )}
+      </div>
+      {notice && (
+        <div className="notice" role="status">
+          <CheckCircle2 size={18} />
+          {notice}
+          <button onClick={() => setNotice('')} aria-label="Cerrar aviso">
+            ×
+          </button>
+        </div>
+      )}
+      <div className="catalog-stats">
+        <div>
+          <span className="stat-icon blue">
+            <Boxes size={22} />
+          </span>
+          <div>
+            <span>Productos registrados</span>
+            <strong>{data.length}</strong>
+          </div>
+        </div>
+        <div>
+          <span className="stat-icon green">
+            <CheckCircle2 size={22} />
+          </span>
+          <div>
+            <span>Disponibles para vender</span>
+            <strong>{data.filter((p) => p.active).length}</strong>
+          </div>
+        </div>
+        <div>
+          <span className="stat-icon purple">
+            <Tag size={22} />
+          </span>
+          <div>
+            <span>Categorías</span>
+            <strong>{categories.data?.length || 0}</strong>
+          </div>
+        </div>
+      </div>
+      <section className="panel catalog-panel">
+        <div className="panel-heading">
+          <div>
+            <h2>
+              Tu catálogo <span className="count-pill">{data.length}</span>
+            </h2>
+            <p>Consulta precios y mantén tus productos al día.</p>
+          </div>
+          {canEdit && (
+            <Button variant="outline" size="small" onClick={() => setNewCategory(true)}>
+              <Plus size={15} />
+              Categoría
+            </Button>
+          )}
+        </div>
+        <div className="catalog-toolbar">
+          <div className="search-input">
+            <Search size={18} />
+            <input
+              aria-label="Buscar producto por nombre o código"
+              placeholder="Buscar por nombre o código…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <div className="status-filter">
+            <SlidersHorizontal size={16} />
+            <select
+              aria-label="Filtrar por estado"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+            >
+              <option value="all">Todos los estados</option>
+              <option value="active">Activos</option>
+              <option value="inactive">Inactivos</option>
+            </select>
+          </div>
+        </div>
+        <div className="category-tabs" aria-label="Categorías">
+          <button
+            aria-pressed={category === 'all'}
+            className={category === 'all' ? 'selected' : ''}
+            onClick={() => setCategory('all')}
+          >
+            Todos los productos
+          </button>
+          {categories.data?.map((c) => (
+            <button
+              aria-pressed={category === c.id}
+              className={category === c.id ? 'selected' : ''}
+              key={c.id}
+              onClick={() => setCategory(c.id)}
+            >
+              {c.name}
+            </button>
+          ))}
+        </div>
+        {products.error || categories.error ? (
+          <ErrorBox
+            message={products.error || categories.error}
+            retry={() => {
+              products.reload();
+              categories.reload();
+            }}
+          />
+        ) : products.loading ? (
+          <Loading />
+        ) : filtered.length === 0 ? (
+          <Empty
+            icon={<Package />}
+            title="No encontramos productos"
+            text="Prueba otra búsqueda o registra tu primer producto."
+          />
+        ) : (
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>PRODUCTO</th>
+                  <th>CÓDIGO</th>
+                  <th>CATEGORÍA</th>
+                  <th>PRECIO DE VENTA</th>
+                  <th>ESTADO</th>
+                  {canEdit && (
+                    <th>
+                      <span className="sr-only">Acciones</span>
+                    </th>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((p) => (
+                  <tr key={p.id}>
+                    <td>
+                      <div className="product-cell">
+                        <ProductIcon category={p.category} />
+                        <strong>{p.name}</strong>
+                      </div>
+                    </td>
+                    <td>
+                      <span className="code-label">{p.code}</span>
+                    </td>
+                    <td>{p.category}</td>
+                    <td>
+                      <strong className="price-label">{money(p.price)}</strong>
+                    </td>
+                    <td>
+                      <span className={`badge ${p.active ? 'badge-green' : 'badge-gray'}`}>
+                        <i />
+                        {p.active ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </td>
+                    {canEdit && (
+                      <td>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label={`Editar ${p.name}`}
+                          onClick={() => setEditing(p)}
+                        >
+                          <Pencil size={16} />
+                        </Button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div className="table-footer">
+          <span>
+            {filtered.length} de {data.length} productos
+          </span>
+          <span>Los productos inactivos conservan su historial.</span>
+        </div>
+      </section>
+      <div className="context-note">
+        <Package size={17} />
+        <span>El precio se conserva en cada venta, incluso si después actualizas el catálogo.</span>
+      </div>
+      {editing !== undefined && (
+        <ProductForm
+          key={editing?.id || 'new'}
+          product={editing}
+          categories={categories.data || []}
+          onClose={() => setEditing(undefined)}
+          onSaved={() => {
+            setNotice(
+              editing
+                ? 'Producto actualizado correctamente.'
+                : 'Producto registrado correctamente.',
+            );
+            setEditing(undefined);
+            onChange();
+          }}
+        />
+      )}
+      <Dialog
+        open={newCategory}
+        onOpenChange={setNewCategory}
+        title="Nueva categoría"
+        description="Agrupa tus productos para encontrarlos más rápido."
+      >
+        <CategoryForm
+          onSaved={() => {
+            setNewCategory(false);
+            onChange();
+            setNotice('Categoría creada.');
+          }}
+        />
+      </Dialog>
+    </div>
+  );
 }
-function ProductForm({ product, categories, onClose, onSaved }: { product: Product | null; categories: Category[]; onClose: () => void; onSaved: () => void }) {
-  const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
-  return <Dialog open onOpenChange={open => { if (!open && !busy) onClose(); }} title={product ? 'Editar producto' : 'Nuevo producto'} description="Los campos con * son obligatorios."><form onSubmit={async e => { e.preventDefault(); const f = new FormData(e.currentTarget); setBusy(true); setError(''); try { await api(`/products${product ? `/${product.id}` : ''}`, { method: product ? 'PUT' : 'POST', body: JSON.stringify({ code: f.get('code'), name: f.get('name'), categoryId: f.get('categoryId'), price: f.get('price'), active: f.get('active') === 'on' }) }); onSaved(); } catch (err) { setError((err as Error).message); } finally { setBusy(false); } }}>
-    <label>Nombre del producto *<input name="name" required minLength={2} maxLength={120} defaultValue={product?.name} placeholder="Ej. Empanada de queso" autoFocus/></label><div className="form-grid"><label>Código *<input name="code" required maxLength={30} pattern="[A-Za-z0-9_-]+" defaultValue={product?.code} placeholder="Ej. PAN-004"/><small>Debe ser único.</small></label><label>Precio de venta (Bs) *<input name="price" type="number" min="0.01" max="9999999.99" step="0.01" required defaultValue={product?.price} placeholder="0.00"/></label></div><label>Categoría *<select name="categoryId" required defaultValue={product?.categoryId || ''}><option value="" disabled>Selecciona una categoría</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label className="checkbox-row"><input name="active" type="checkbox" defaultChecked={product?.active ?? true}/><span>Disponible para vender<small>Desactívalo para retirarlo del punto de venta.</small></span></label>{error && <ErrorBox message={error}/>}<div className="dialog-actions"><Button type="button" variant="outline" onClick={onClose} disabled={busy}>Cancelar</Button><Button disabled={busy || !categories.length}>{busy ? 'Guardando…' : 'Guardar producto'}</Button></div></form></Dialog>;
+function ProductForm({
+  product,
+  categories,
+  onClose,
+  onSaved,
+}: {
+  product: Product | null;
+  categories: Category[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open && !busy) onClose();
+      }}
+      title={product ? 'Editar producto' : 'Nuevo producto'}
+      description="Los campos con * son obligatorios."
+    >
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault();
+          const f = new FormData(e.currentTarget);
+          setBusy(true);
+          setError('');
+          try {
+            await api(`/products${product ? `/${product.id}` : ''}`, {
+              method: product ? 'PUT' : 'POST',
+              body: JSON.stringify({
+                code: f.get('code'),
+                name: f.get('name'),
+                categoryId: f.get('categoryId'),
+                price: f.get('price'),
+                active: f.get('active') === 'on',
+              }),
+            });
+            onSaved();
+          } catch (err) {
+            setError((err as Error).message);
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        <label>
+          Nombre del producto *
+          <input
+            name="name"
+            required
+            minLength={2}
+            maxLength={120}
+            defaultValue={product?.name}
+            placeholder="Ej. Empanada de queso"
+            autoFocus
+          />
+        </label>
+        <div className="form-grid">
+          <label>
+            Código *
+            <input
+              name="code"
+              required
+              maxLength={30}
+              pattern="[A-Za-z0-9_-]+"
+              defaultValue={product?.code}
+              placeholder="Ej. PAN-004"
+            />
+            <small>Debe ser único.</small>
+          </label>
+          <label>
+            Precio de venta (Bs) *
+            <input
+              name="price"
+              type="number"
+              min="0.01"
+              max="9999999.99"
+              step="0.01"
+              required
+              defaultValue={product?.price}
+              placeholder="0.00"
+            />
+          </label>
+        </div>
+        <label>
+          Categoría *
+          <select name="categoryId" required defaultValue={product?.categoryId || ''}>
+            <option value="" disabled>
+              Selecciona una categoría
+            </option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="checkbox-row">
+          <input name="active" type="checkbox" defaultChecked={product?.active ?? true} />
+          <span>
+            Disponible para vender<small>Desactívalo para retirarlo del punto de venta.</small>
+          </span>
+        </label>
+        {error && <ErrorBox message={error} />}
+        <div className="dialog-actions">
+          <Button type="button" variant="outline" onClick={onClose} disabled={busy}>
+            Cancelar
+          </Button>
+          <Button disabled={busy || !categories.length}>
+            {busy ? 'Guardando…' : 'Guardar producto'}
+          </Button>
+        </div>
+      </form>
+    </Dialog>
+  );
 }
 function CategoryForm({ onSaved }: { onSaved: () => void }) {
-  const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
-  return <form onSubmit={async e => { e.preventDefault(); const f = new FormData(e.currentTarget); setBusy(true); setError(''); try { await api('/categories', { method: 'POST', body: JSON.stringify({ name: f.get('name') }) }); onSaved(); } catch (err) { setError((err as Error).message); } finally { setBusy(false); } }}><label>Nombre de la categoría<input name="name" required minLength={2} maxLength={60} placeholder="Ej. Comidas" autoFocus/></label>{error && <ErrorBox message={error}/>}<div className="dialog-actions"><Button disabled={busy}>{busy ? 'Guardando…' : 'Crear categoría'}</Button></div></form>;
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  return (
+    <form
+      onSubmit={async (e) => {
+        e.preventDefault();
+        const f = new FormData(e.currentTarget);
+        setBusy(true);
+        setError('');
+        try {
+          await api('/categories', {
+            method: 'POST',
+            body: JSON.stringify({ name: f.get('name') }),
+          });
+          onSaved();
+        } catch (err) {
+          setError((err as Error).message);
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <label>
+        Nombre de la categoría
+        <input
+          name="name"
+          required
+          minLength={2}
+          maxLength={60}
+          placeholder="Ej. Comidas"
+          autoFocus
+        />
+      </label>
+      {error && <ErrorBox message={error} />}
+      <div className="dialog-actions">
+        <Button disabled={busy}>{busy ? 'Guardando…' : 'Crear categoría'}</Button>
+      </div>
+    </form>
+  );
 }

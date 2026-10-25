@@ -1,6 +1,7 @@
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import * as schema from './schema';
-if (!process.env.DATABASE_URL) throw new Error('Falta DATABASE_URL. Copia .env.example a .env y prepara PostgreSQL.');
+if (!process.env.DATABASE_URL)
+  throw new Error('Falta DATABASE_URL. Copia .env.example a .env y prepara PostgreSQL.');
 export const client = postgres(process.env.DATABASE_URL, { max: 10 });
 export const db = drizzle(client, { schema });
