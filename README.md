@@ -72,5 +72,3 @@ La compilación deja la SPA en `apps/web/dist`. Para probarla, configura `APP_OR
 - [Texto para el formulario](docs/formulario-entrega.md)
 
 Pedidos pendientes, inventario, administración visual de usuarios y apertura/arqueo/cierre de caja son ampliaciones posteriores. El carrito vive en memoria y se descarta al salir de la pantalla. El QR no está conectado al banco. Los reportes expresan ventas, no utilidad.
-
-Los commits son locales; el estudiante realizará la publicación en GitHub.
