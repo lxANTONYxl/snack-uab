@@ -1,6 +1,6 @@
 # Decisiones de arquitectura
 
-Fecha: 24 de octubre de 2026.
+Fecha: 24 de octubre de 2026. Primera implementación local completada; consultar README y modelo-datos.md para el estado ejecutable.
 
 ## Contexto
 
@@ -38,14 +38,12 @@ flowchart LR
     Data --> DB[(PostgreSQL)]
 ```
 
-Estructura prevista; estas carpetas de aplicación aún no están creadas:
+Estructura implementada (los tipos de interfaz se mantienen en la SPA; aún no fue necesario un paquete compartido):
 
 ```text
 apps/
   web/                 # SPA, componentes y pantallas
   api/                 # API, servicios y acceso a datos
-packages/
-  shared/              # Contratos compartidos que realmente se necesiten
 docs/
 ```
 
@@ -64,7 +62,7 @@ Los módulos iniciales serán productos, ventas, reportes y acceso de usuarios. 
 
 Relaciones: una categoría tiene varios productos; una venta tiene varios detalles; cada detalle pertenece a un producto; cada venta tiene un responsable. Para la primera entrega se propone un pago por venta, en efectivo o QR. Los pagos combinados quedan fuera del alcance inicial.
 
-El esquema físico, índices y restricciones se especificarán antes de crear las migraciones.
+El esquema físico está implementado en apps/api/src/schema.ts y en las migraciones de drizzle/. La semilla crea un administrador local. Los permisos de cajero y vendedor se comprueban en pruebas; su administración visual queda para después.
 
 ## Reglas de integridad
 
@@ -85,7 +83,7 @@ El esquema físico, índices y restricciones se especificarán antes de crear la
 
 Diseñar para tareas breves: búsqueda visible, precio legible, botones claros, navegación por teclado, etiquetas de formulario, validaciones junto al campo y estados de carga, error y lista vacía. El aspecto final depende de estas decisiones, no solo de elegir React.
 
-Autenticación prevista con sesiones de servidor y cookies HttpOnly; configurar expiración, protección CSRF y Secure bajo HTTPS. Los permisos se comprobarán en la API. Los roles operativos se definirán al validar el flujo de atención; el catálogo y los reportes tendrán acceso autorizado desde la primera entrega.
+Autenticación implementada con sesiones de ocho horas, cookies HttpOnly y SameSite=Lax y verificación estricta de Origin para escrituras. Secure se activa en producción con HTTPS. El administrador gestiona catálogo, cobros y reportes; el cajero registra cobros y consulta reportes; el vendedor solo consulta el catálogo en esta fase. Los permisos se comprueban en la API y podrán ampliarse al incorporar pedidos y entregas.
 
 ## Referencias oficiales
 

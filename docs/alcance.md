@@ -1,5 +1,7 @@
 # Alcance y criterios de aceptación
 
+Estado al 25/10/2026: primera entrega implementada y verificada localmente. Consultar verificacion.md para las comprobaciones y los límites; la ampliación posterior sigue pendiente.
+
 ## Primera entrega académica
 
 ### Gestión de Productos
